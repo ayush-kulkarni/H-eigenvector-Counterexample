@@ -26,17 +26,17 @@ function run_heigenpair_workflow(A, k)
 
         # # --- Write Equations to File ---
         # println("\nWriting equations to '$equations_output_filename'...")
-        open(equations_output_filename, "w") do file
-            write(file, "System of Equations for H-Eigenpairs\n")
-            write(file, "========================================\n\n")
-            write(file, "Input Tensor Details:\n  - Order (m): $order_m\n  - Dimension (n): $dim_n\n\n")
-            write(file, "Variables:\n  - Eigenvalue: $lambda_var\n  - Eigenvector components: $(join([string(v) for v in x_vars], ", "))\n\n")
-            write(file, "Equations:\n")
-            for (i, eq) in enumerate(eqs)
-                write(file, "  Eq. $i:  $(string(eq))\n")
-            end
-            write(file, "\n========================================\n")
-        end
+        # open(equations_output_filename, "w") do file
+        #     write(file, "System of Equations for H-Eigenpairs\n")
+        #     write(file, "========================================\n\n")
+        #     write(file, "Input Tensor Details:\n  - Order (m): $order_m\n  - Dimension (n): $dim_n\n\n")
+        #     write(file, "Variables:\n  - Eigenvalue: $lambda_var\n  - Eigenvector components: $(join([string(v) for v in x_vars], ", "))\n\n")
+        #     write(file, "Equations:\n")
+        #     for (i, eq) in enumerate(eqs)
+        #         write(file, "  Eq. $i:  $(string(eq))\n")
+        #     end
+        #     write(file, "\n========================================\n")
+        # end
         # println("File written successfully.")
 
         # --- Solve the System and Write Solutions ---

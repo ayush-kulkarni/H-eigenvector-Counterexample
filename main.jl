@@ -1,4 +1,5 @@
-# import Pkg; Pkg.add("Combinatorics")
+# import Pkg; 
+# Pkg.add("Combinatorics")
 # Pkg.add("HomotopyContinuation")
 # Pkg.add("LinearAlgebra")
 
@@ -61,8 +62,8 @@ function run_check_on_random_tensors(num_tests)
     for i in 1:num_tests
         println("Test $i")
         # Generate random symmetric tensors A and B
-        tensor_A = generate_symmetric_tensor(3, (2, 2, 2))
-        tensor_B = generate_symmetric_tensor(3, (2, 2, 2))
+        tensor_A = generate_symmetric_tensor(6, (2, 2, 2, 2, 2, 2))
+        tensor_B = generate_symmetric_tensor(6, (2, 2, 2, 2, 2, 2))
 
         # Compute their Kronecker product
         kronecker_product_result = kronecker_product(tensor_B, tensor_A)
@@ -114,10 +115,7 @@ function generate_symmetric_tensor(dim, size)
 
     # Iterate through canonical indices (where i_1 <= i_2 <= ... <= i_d)
     for idx_tuple in Combinatorics.with_replacement_combinations(1:n, dim)
-        # Pick a random value >= 1.0 with a step of 0.1 and no upper bound.
-        # This generates a number from a Pareto distribution and rounds it to one decimal place.
-        val = rand(-1.0:0.1:1.0)
-        # Assign this value to all symmetric positions (all permutations of the index)
+        val = rand(0.0:0.1:1.0)
         for p_tuple in unique(Combinatorics.permutations(idx_tuple))
             tensor[p_tuple...] = val
         end
@@ -126,12 +124,8 @@ function generate_symmetric_tensor(dim, size)
 end
 
 
-
-
 # -- Randomly test tensors to see if we can find one that doesn't work -- 
-# run_check_on_random_tensors(1)
-
-
+run_check_on_random_tensors(5)
 
 
 # Run Hyperdeterminant Analysis on the provided tensor
