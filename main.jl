@@ -125,17 +125,35 @@ end
 
 
 # -- Randomly test tensors to see if we can find one that doesn't work -- 
-run_check_on_random_tensors(5)
+# run_check_on_random_tensors(5)
 
 
-# Run Hyperdeterminant Analysis on the provided tensor
+
+# Run check on known tensors
+# # Tensor A
+tensor_A = cat(
+    [0.3 -0.3; -0.3 0.0],  # Slice [:, :, 1]
+    [-0.3 0.0; 0.0 1.0],   # Slice [:, :, 2]
+    dims=3
+)
+
+# Tensor B
+tensor_B = cat(
+    [0.7 -0.2; -0.2 -0.2], # Slice [:, :, 1]
+    [-0.2 -0.2; -0.2 -0.8],# Slice [:, :, 2]
+    dims=3
+)
+# run_check_on_tensors(tensor_B, tensor_A)
+
+
+# # Run Hyperdeterminant Analysis on the provided tensor
 # try
 #     # Load dependencies and data
 #     include("hyperdeterminant/run-hyperdeterminant.jl")
 #     include("hyperdeterminant/hyperdeterminant.jl")
     
 #     # Call the main function with the loaded tensor
-#     # analyze_hyperdeterminant(A)
+#     analyze_hyperdeterminant(tensor_A)
 
 # catch e
 #     println("\nAn error occurred during script execution:")
