@@ -1,5 +1,5 @@
 using LinearAlgebra
-using SymPy
+using Symbolics
 
 """
     hyperdeterminant(A::Array{T, 3}) -> T
@@ -64,51 +64,45 @@ function get_characteristic_coefficients(A::Array{Rational{Int}, 3})
 end
 
 """
-    solve_polynomial_roots(coeffs) -> Vector{Complex}
+    solve_polynomial_roots(coeffs) -> Vector{ComplexF64}
 
-Finds the roots of the polynomial defined by `coeffs` using SymPy.
+Finds the roots of the polynomial defined by `coeffs` using the companion matrix method.
 """
 function solve_polynomial_roots(coeffs)
-    @syms λ
-    poly_expr = 0
-    for (i, c) in enumerate(coeffs)
-        poly_expr += c * λ^(i-1)
+    # P(λ) = c0 + c1λ + c2λ^2 + c3λ^3 + c4λ^4
+    # Normalize to make it monic: P(λ) = a0 + a1λ + a2λ^2 + a3λ^3 + λ^4
+    n = length(coeffs) - 1
+    while n > 0 && abs(coeffs[n+1]) < 1e-12
+        n -= 1
     end
     
-    # Use SymPy to solve
-    roots = SymPy.solve(Eq(poly_expr, 0), λ)
+    if n == 0 return ComplexF64[] end
+
+    # Monic coefficients
+    monic_coeffs = [ComplexF64(c / coeffs[n+1]) for c in coeffs[1:n]]
     
-    # Convert to complex numbers for display/usage
-    return [complex(N(r)) for r in roots]
+    # Construct Companion Matrix
+    C = zeros(ComplexF64, n, n)
+    for i in 1:n-1
+        C[i+1, i] = 1.0
+    end
+    for i in 1:n
+        C[i, n] = -monic_coeffs[i]
+    end
+    
+    # Eigenvalues of companion matrix are roots of the polynomial
+    return eigvals(C)
 end
 
 """
     print_polynomial(coeffs, label)
 
-Helper to print the polynomial in a readable format.
+Helper to print the polynomial in a readable format using Symbolics.
 """
 function print_polynomial(coeffs, label)
-    terms = String[]
-    degrees = ["", "λ", "λ^2", "λ^3", "λ^4"]
-    
-    for (i, c) in enumerate(coeffs)
-        if c != 0
-            num = numerator(c)
-            den = denominator(c)
-            
-            sign_str = num < 0 ? " - " : " + "
-            abs_num = abs(num)
-            val_str = (den == 1) ? "$abs_num" : "$abs_num/$den"
-            
-            if isempty(terms)
-                push!(terms, (num < 0 ? "-" : "") * "$val_str$(degrees[i])")
-            else
-                push!(terms, "$sign_str$val_str$(degrees[i])")
-            end
-        end
-    end
-    
-    println("$label Characteristic Equation: P(λ) = " * join(terms) * " = 0")
+    @variables λ
+    poly_expr = sum(coeffs[i] * λ^(i-1) for i in 1:length(coeffs))
+    println("$label Characteristic Equation: P(λ) = $poly_expr = 0")
 end
 
 """
@@ -121,7 +115,7 @@ function run_analytical_workflow(tensor::Array{Rational{Int}, 3}, name::String)
     coeffs = get_characteristic_coefficients(tensor)
     print_polynomial(coeffs, name)
     
-    println("Finding roots analytically (via SymPy)...")
+    println("Finding roots analytically (via Companion Matrix)...")
     roots = solve_polynomial_roots(coeffs)
     
     println("Roots (Eigenvalues):")

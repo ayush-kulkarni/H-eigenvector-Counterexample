@@ -1,4 +1,4 @@
-using SymPy
+using Symbolics
 
 # Include shared utilities
 include("../common/tensor_utils.jl")
@@ -19,7 +19,7 @@ function solve_and_verify(tensor, tensor_name, filename)
     A211 = tensor[2, 1, 1]; A221 = tensor[2, 2, 1]
     A212 = tensor[2, 1, 2]; A222 = tensor[2, 2, 2]
 
-    @syms t λ
+    @variables t λ
 
     # Equation 1 (i=1): A111 + 2*A121*t + A122*t^2 = λ
     # Rearranged to Quadratic Form: (A122)*t^2 + (2*A121)*t + (A111 - λ) = 0
@@ -44,16 +44,17 @@ function solve_and_verify(tensor, tensor_name, filename)
     # (a2*b1 - a1*b2) * t + (a2*c1 - a1*c2) = 0
     # t = (a1*c2 - a2*c1) / (a2*b1 - a1*b2)
     
-    numerator = a1*c2 - a2*c1
-    denominator = a2*b1 - a1*b2
+    num_expr = a1*c2 - a2*c1
+    den_expr = a2*b1 - a1*b2
     
-    if denominator == 0
+    # In Symbolics, we can check if the denominator expression is structurally zero
+    if isequal(den_expr, 0)
         # Fallback for degenerate cases where elimination fails (rare for general tensors)
-        println("  Denominator is zero. Falling back to direct solve...")
-        sols = SymPy.solve(Eq(a1*t^2 + b1*t + c1, 0), t)
-        t_formula = simplify(sols[1])
+        println("  Denominator is zero. Falling back to direct quadratic formula for Eq 1...")
+        # a1*t^2 + b1*t + c1 = 0  => t = (-b1 + sqrt(b1^2 - 4*a1*c1)) / (2*a1)
+        t_formula = (-b1 + sqrt(b1^2 - 4*a1*c1)) / (2*a1)
     else
-        t_formula = simplify(numerator / denominator)
+        t_formula = simplify(num_expr / den_expr)
     end
     
     println("  Formula Derived: t(λ) = $t_formula")
@@ -65,22 +66,17 @@ function solve_and_verify(tensor, tensor_name, filename)
     match_count = 0
     total = length(file_sols)
     
-    # SymPy function for evaluation
-    # We substitute λ and evaluate numerically
-    
     for (i, sol) in enumerate(file_sols)
         λ_val = sol.λ
         vec_file = sol.vec
         
         # Evaluate formula: t_eval = t_formula(λ_val)
         # Substitute symbolic λ with complex value
+        t_sym_val = substitute(t_formula, Dict(λ => λ_val))
         
-        # Evaluate using N() to get numerical result
-        t_sym_val = N(t_formula.subs(λ, λ_val))
-        
-        # Convert SymPy number to Julia ComplexF64
-        # We can cast via string for robustness or use complex(t_sym_val)
-        t_eval = complex(t_sym_val)
+        # Symbolics.value(t_sym_val) or just the result if it's already a number
+        # We use ComplexF64 construction
+        t_eval = ComplexF64(Symbolics.value(t_sym_val))
         
         # Theoretical Vector [1, t]
         vec_theo = [1.0 + 0.0im, t_eval]
@@ -93,8 +89,6 @@ function solve_and_verify(tensor, tensor_name, filename)
             # Special check for eigenvectors like [0, 1] which fail the t=x2/x1 model
             if abs(vec_file[1]) < 1e-6 && abs(vec_file[2]) > 1e-6
                 status = "SKIP (Vertical Vector [0,1])"
-                # This is technically a match for the system, but a fail for the "t" formula
-                # So we don't count it as a formula match, but we acknowledge it.
             else
                 status = "FAIL"
             end
@@ -109,6 +103,17 @@ function solve_and_verify(tensor, tensor_name, filename)
     
     println("  Summary: $match_count / $total solutions matched the derived formula.")
 end
+
+function main()
+    # Define Tensors
+    tensor_A, tensor_B = get_example_tensors()
+
+    solve_and_verify(tensor_A, "Tensor A", "solutions_A.txt")
+    solve_and_verify(tensor_B, "Tensor B", "solutions_B.txt")
+end
+
+main()
+
 
 function main()
     # Define Tensors

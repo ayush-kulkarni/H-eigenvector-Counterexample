@@ -36,7 +36,6 @@ function main()
         
     elseif choice == 3
         println("\n>>> Verifying Solutions Analytically...")
-        # We run the script as a separate process to maintain a clean environment for SymPy
         run(`julia --project=. analytical/h_eigenvector_verifier.jl`)
         
     else
