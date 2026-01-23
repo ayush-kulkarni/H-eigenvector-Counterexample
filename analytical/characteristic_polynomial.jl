@@ -2,62 +2,141 @@ using LinearAlgebra
 using Symbolics
 
 """
-    hyperdeterminant(A::Array{T, 3}) -> T
+    get_polynomial_coefficients(A::Array{T, N}, row_idx::Int)
 
-Computes Cayley's hyperdeterminant for a 2x2x2 tensor A.
+Extracts coefficients of the homogeneous polynomial defined by the `row_idx`-th slice of tensor A.
+Assumes dimension size is 2.
 """
-function hyperdeterminant(A::Array{T, 3}) where T
-    # Using 1-based indexing
-    a000, a001 = A[1,1,1], A[1,1,2]
-    a010, a011 = A[1,2,1], A[1,2,2]
-    a100, a101 = A[2,1,1], A[2,1,2]
-    a110, a111 = A[2,2,1], A[2,2,2]
-
-    # Cayley's Hyperdeterminant Formula
-    term1 = (a000^2 * a111^2) + (a001^2 * a110^2) + (a010^2 * a101^2) + (a100^2 * a011^2)
-    term2 = -2 * (
-        (a000 * a001 * a110 * a111) + (a000 * a010 * a101 * a111) +
-        (a000 * a100 * a011 * a111) + (a001 * a010 * a101 * a110) +
-        (a001 * a100 * a011 * a110) + (a010 * a100 * a011 * a101)
-    )
-    term3 = 4 * ((a000 * a011 * a101 * a110) + (a001 * a010 * a100 * a111))
+function get_polynomial_coefficients(A::Array{T, N}, row_idx::Int) where {T, N}
+    # Degree of polynomial is order - 1
+    d = N - 1
+    # We want coefficients for terms: x^d, x^{d-1}y, ..., y^d
+    coeffs = zeros(T, d + 1)
     
-    return term1 + term2 + term3
+    # Iterate over all indices for the remaining dimensions (m-1 dimensions)
+    # Each index is in {1, 2}
+    iter_dims = ntuple(_ -> 2, d)
+    
+    for idx in CartesianIndices(iter_dims)
+        # Count number of 2s in the index tuple (corresponds to power of y)
+        num_twos = count(x -> x == 2, Tuple(idx))
+        
+        # Access tensor value. Note: First index is row_idx, rest are from idx
+        val = A[row_idx, idx]
+        
+        # Add to the appropriate coefficient (1-based index: 0 twos -> index 1)
+        coeffs[num_twos + 1] += val
+    end
+    
+    return coeffs
 end
 
 """
-    identity_tensor_2x2x2() -> Array{Rational{Int}, 3}
+    build_sylvester_matrix(coeffs1, coeffs2)
 
-Returns the generalized identity tensor for the eigenvalue problem (diagonal 1s).
+Constructs the Sylvester matrix for two polynomials defined by `coeffs1` and `coeffs2`.
 """
-function identity_tensor_2x2x2()
-    I_tens = zeros(Rational{Int}, 2, 2, 2)
-    I_tens[1, 1, 1] = 1//1
-    I_tens[2, 2, 2] = 1//1
+function build_sylvester_matrix(coeffs1, coeffs2)
+    d = length(coeffs1) - 1 # Degree
+    size_mat = 2 * d
+    M = zeros(eltype(coeffs1), size_mat, size_mat)
+    
+    # Fill top half with coeffs1
+    for i in 1:d
+        for j in 1:(d+1)
+            M[i, i + j - 1] = coeffs1[j]
+        end
+    end
+    
+    # Fill bottom half with coeffs2
+    for i in 1:d
+        for j in 1:(d+1)
+            M[d + i, i + j - 1] = coeffs2[j]
+        end
+    end
+    
+    return M
+end
+
+"""
+    compute_resultant_dim2(A::Array{T, N})
+
+Computes the resultant of the system of polynomials defined by the tensor A (dimension 2).
+Uses the Sylvester matrix determinant.
+"""
+function compute_resultant_dim2(A::Array{T, N}) where {T, N}
+    # Get coefficients for the two polynomials (from rows 1 and 2)
+    c1 = get_polynomial_coefficients(A, 1)
+    c2 = get_polynomial_coefficients(A, 2)
+    
+    # Build Sylvester matrix
+    S = build_sylvester_matrix(c1, c2)
+    
+    # Compute determinant
+    return det(S)
+end
+
+"""
+    identity_tensor(n::Int, m::Int) -> Array{Rational{Int}, m}
+
+Returns the generalized identity tensor for the eigenvalue problem.
+I[i, i, ..., i] = 1, others 0.
+"""
+function identity_tensor(n::Int, m::Int)
+    sz = ntuple(_ -> n, m)
+    I_tens = zeros(Rational{Int}, sz)
+    for i in 1:n
+        idx = ntuple(_ -> i, m)
+        I_tens[idx...] = 1//1
+    end
     return I_tens
 end
 
 """
-    get_characteristic_coefficients(A::Array{Rational{Int}, 3}) -> Vector{Rational{Int}}
+    get_characteristic_coefficients(A::Array{Rational{Int}}) -> Vector{Rational{Int}}
 
-Computes the coefficients of the characteristic polynomial P(λ) = Det(A - λI) using interpolation.
-For tensors, this 'Det' is the hyperdeterminant.
+Computes the coefficients of the characteristic polynomial P(λ) = Res(A - λI) using interpolation.
+Works for any order tensor (dim 2).
 """
-function get_characteristic_coefficients(A::Array{Rational{Int}, 3})
-    I_tens = identity_tensor_2x2x2()
+function get_characteristic_coefficients(A::Array{Rational{Int}})
+    m = ndims(A)
+    n = size(A, 1)
     
-    # Interpolation points (Rational Integers)
-    x_points = [Rational{Int}(x) for x in -2:2]
+    if n != 2
+        error("Analytical analysis currently only supports dimension n=2.")
+    end
+
+    # Degree of Characteristic Polynomial: D = n * (m-1)^(n-1)
+    # For n=2: D = 2 * (m-1)
+    degree_poly = 2 * (m - 1)
+    
+    # We need D+1 points for interpolation
+    # Use points centered around 0
+    start_pt = -(degree_poly ÷ 2)
+    x_points = [Rational{Int}(x) for x in start_pt:(start_pt + degree_poly)]
+    
+    # If not enough points (e.g. degree is small), ensure at least degree+1
+    if length(x_points) < degree_poly + 1
+        x_points = [Rational{Int}(x) for x in 0:degree_poly]
+    end
+
+    I_tens = identity_tensor(n, m)
     y_points = Rational{Int}[]
 
-    # Evaluate Det(A - λI) at the 5 points
+    # Evaluate Resultant(A - λI) at the points
     for x in x_points
         A_shifted = A .- (x .* I_tens)
-        push!(y_points, hyperdeterminant(A_shifted))
+        
+        # Use general resultant computation
+        # Note: Resultant is proportional to the hyperdeterminant/characteristic poly
+        push!(y_points, compute_resultant_dim2(A_shifted))
     end
 
     # Solve Vandermonde system V * coeffs = y
-    V = [x^p for x in x_points, p in 0:4]
+    # V[i, j] = x_points[i]^(j-1)
+    V = [x^p for x in x_points, p in 0:degree_poly]
+    
+    # Solve system using precise rational arithmetic
     coeffs = V \ y_points
     
     return coeffs
@@ -69,9 +148,10 @@ end
 Finds the roots of the polynomial defined by `coeffs` using the companion matrix method.
 """
 function solve_polynomial_roots(coeffs)
-    # P(λ) = c0 + c1λ + c2λ^2 + c3λ^3 + c4λ^4
-    # Normalize to make it monic: P(λ) = a0 + a1λ + a2λ^2 + a3λ^3 + λ^4
+    # P(λ) = c0 + c1λ + ... + cDλ^D
     n = length(coeffs) - 1
+    
+    # Trim trailing zeros (leading coeffs in high powers)
     while n > 0 && abs(coeffs[n+1]) < 1e-12
         n -= 1
     end
@@ -110,8 +190,10 @@ end
 
 Runs the full analytical workflow: compute poly, print it, find roots.
 """
-function run_analytical_workflow(tensor::Array{Rational{Int}, 3}, name::String)
+function run_analytical_workflow(tensor::Array{Rational{Int}}, name::String)
     println("\n--- Analytical Analysis for $name ---")
+    println("Tensor Order: $(ndims(tensor)), Dimension: $(size(tensor,1))")
+    
     coeffs = get_characteristic_coefficients(tensor)
     print_polynomial(coeffs, name)
     

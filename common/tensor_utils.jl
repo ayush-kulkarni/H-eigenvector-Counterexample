@@ -122,19 +122,42 @@ end
 Returns the two example tensors A and B used in the project.
 """
 function get_example_tensors()
+    
+    # The simple counterexample. (2.1)
     # Tensor A
     tensor_A = cat(
         [0.3 -0.3; -0.3 0.0],  # Slice [:, :, 1]
         [-0.3 0.0; 0.0 1.0],   # Slice [:, :, 2]
         dims=3
     )
-
     # Tensor B
     tensor_B = cat(
         [0.7 -0.2; -0.2 -0.2], # Slice [:, :, 1]
         [-0.2 -0.2; -0.2 -0.8],# Slice [:, :, 2]
         dims=3
     )
+    
+    
+    
+    # The false counterexample. (2.2)
+    # # Tensor A
+    # tensor_A = reshape(cat(
+    #     [-0.5  0.6; 0.6  0.2],  # Block 1,1 (Top-Left)
+    #     [ 0.6  0.2; 0.2  0.1],  # Block 2,1 (Bottom-Left)
+    #     [ 0.6  0.2; 0.2  0.1],  # Block 1,2 (Top-Right)
+    #     [ 0.2  0.1; 0.1 -1.7],  # Block 2,2 (Bottom-Right)
+    #     dims=3
+    # ), 2, 2, 2, 2)
+    # # Tensor B
+    # tensor_B = reshape(cat(
+    #     [-0.3  1.0; 1.0  0.1],  # Block 1,1 (Top-Left)
+    #     [ 1.0  0.1; 0.1 -1.0],  # Block 2,1 (Bottom-Left)
+    #     [ 1.0  0.1; 0.1 -1.0],  # Block 1,2 (Top-Right)
+    #     [ 0.1 -1.0; -1.0 -0.9], # Block 2,2 (Bottom-Right)
+    #     dims=3
+    # ), 2, 2, 2, 2)
+    
+    
     
     return tensor_A, tensor_B
 end

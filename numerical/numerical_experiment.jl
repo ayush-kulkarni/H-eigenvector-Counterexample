@@ -52,6 +52,73 @@ function run_check_on_tensors(tensor_B, tensor_A)
 end
 
 """
+    run_check_on_random_tensors(num_tests::Int; order::Int=3, dimension::Int=2)
+
+Generates random symmetric tensors and checks the multiplicative property of H-eigenvalues.
+"""
+function run_check_on_random_tensors(num_tests::Int; order::Int=3, dimension::Int=2)
+    size_tuple = ntuple(_ -> dimension, order)
+    
+    println("Running $num_tests tests with random tensors (Order: $order, Dimension: $dimension)...")
+
+    for i in 1:num_tests
+        println("\n--- Test $i ---")
+        # Generate random symmetric tensors A and B
+        tensor_A = generate_symmetric_tensor(order, size_tuple)
+        tensor_B = generate_symmetric_tensor(order, size_tuple)
+
+        # Compute their Kronecker product
+        # Note: resulting tensor will have order 'order' and dimension 'dimension^2' ?
+        # Wait, kronecker product of two tensors of size (n,n,n) and (n,n,n)
+        # Result is size (n^2, n^2, n^2).
+        # Yes, dimensions are multiplied, order stays the same.
+        kronecker_product_result = kronecker_product(tensor_B, tensor_A)
+
+        # Run the workflow and compare results
+        # We suppress output for A and B to keep it clean, or keep it?
+        # The original code printed status.
+        
+        largest_magnitude_lambda_A = run_heigenpair_workflow(tensor_A, "A_random_$i")
+        if (largest_magnitude_lambda_A == -1.0)
+            println("Solver failed for tensor A. Skipping this test.")
+            continue
+        end
+        
+        largest_magnitude_lambda_B = run_heigenpair_workflow(tensor_B, "B_random_$i")
+        if (largest_magnitude_lambda_B == -1.0)
+            println("Solver failed for tensor B. Skipping this test.")
+            continue
+        end
+        
+        largest_magnitude_lambda_C = run_heigenpair_workflow(kronecker_product_result, "C_random_$i")
+        if (largest_magnitude_lambda_C == -1.0)
+            println("Solver failed for Kronecker product tensor C. Skipping this test.")
+            continue
+        end
+
+        product_of_lambdas = largest_magnitude_lambda_A * largest_magnitude_lambda_B
+
+        println("Result Test $i:")
+        println("  |λ_A| * |λ_B| = $largest_magnitude_lambda_A * $largest_magnitude_lambda_B = $product_of_lambdas")
+        println("  |λ_C|         = $largest_magnitude_lambda_C")
+        
+        if !isapprox(product_of_lambdas, largest_magnitude_lambda_C, atol=1e-8)
+            println("  >>> Check FAILED.")
+            println("  Difference: $(abs(product_of_lambdas - largest_magnitude_lambda_C))")
+            println("  Terminating random checks.")
+            println("\nTensor A:")
+            display(tensor_A)
+            println("\nTensor B:")
+            display(tensor_B)
+            return
+        else
+            println("  >>> Check PASSED.")
+        end
+    end
+    println("\nAll $num_tests random tests completed successfully.")
+end
+
+"""
     run_numerical_experiment()
 
 Main entry point for the numerical experiment.

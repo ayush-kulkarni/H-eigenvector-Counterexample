@@ -1,126 +1,117 @@
-using Symbolics
+using LinearAlgebra
 
 # Include shared utilities
 include("../common/tensor_utils.jl")
 
 """
-    solve_and_verify(tensor, tensor_name, filename)
+    compute_h_eigen_residual(A, x, λ)
 
-Derives the symbolic formula for t(λ) for a given tensor and verifies it against numerical solutions.
+Computes the residual vector r = A * x^(m-1) - λ * x^[m-1].
+Returns the norm of r.
 """
-function solve_and_verify(tensor, tensor_name, filename)
+function compute_h_eigen_residual(A, x, λ)
+    m = ndims(A)
+    n = size(A, 1)
+    
+    # Check dimensions
+    if length(x) != n
+        error("Vector x dimension $(length(x)) does not match tensor dimension $n")
+    end
+    
+    # Compute LHS = A * x^(m-1)
+    lhs = zeros(ComplexF64, n)
+    
+    # Iterate over all indices
+    # We want to sum over j2...jm
+    # A[i, j2, ..., jm] * x[j2] * ... * x[jm]
+    
+    # Total indices: m. Iterating over all is n^m.
+    # For n=2, m=4, that's 16 iterations. Very fast.
+    for idx in CartesianIndices(A)
+        # idx is (i, j2, ..., jm)
+        val = A[idx]
+        
+        # Product of x terms corresponding to indices 2 to m
+        x_prod = one(ComplexF64)
+        for k in 2:m
+            x_prod *= x[idx[k]]
+        end
+        
+        # Add to LHS[i]
+        lhs[idx[1]] += val * x_prod
+    end
+    
+    # Compute RHS = λ * x^[m-1] (component-wise power)
+    rhs = λ .* (x .^ (m - 1))
+    
+    # Residual
+    res_vec = lhs .- rhs
+    return norm(res_vec)
+end
+
+"""
+    verify_solutions_generic(tensor, tensor_name, filename)
+
+Verifies the solutions in `filename` against the tensor `tensor` using the H-eigenvalue equation.
+"""
+function verify_solutions_generic(tensor, tensor_name, filename)
     println("\n==========================================")
-    println("      Processing $tensor_name       ")
+    println("      Verifying $tensor_name       ")
+    println("      (Order: $(ndims(tensor)), Dim: $(size(tensor,1)))")
     println("==========================================")
     
-    # 1. Setup Tensor Equations
-    A111 = tensor[1, 1, 1]; A121 = tensor[1, 2, 1]
-    A112 = tensor[1, 1, 2]; A122 = tensor[1, 2, 2]
-    A211 = tensor[2, 1, 1]; A221 = tensor[2, 2, 1]
-    A212 = tensor[2, 1, 2]; A222 = tensor[2, 2, 2]
-
-    @variables t λ
-
-    # Equation 1 (i=1): A111 + 2*A121*t + A122*t^2 = λ
-    # Rearranged to Quadratic Form: (A122)*t^2 + (2*A121)*t + (A111 - λ) = 0
-    a1 = A122
-    b1 = 2 * A121
-    c1 = A111 - λ
-    
-    # Equation 2 (i=2): A211 + 2*A212*t + A222*t^2 = λ*t^2
-    # Rearranged to Quadratic Form: (A222 - λ)*t^2 + (2*A212)*t + (A211) = 0
-    a2 = A222 - λ
-    b2 = 2 * A212
-    c2 = A211
-    
-    # 2. Derive Symbolic Formula for t(λ)
-    println("Deriving symbolic formula using algebraic elimination...")
-    
-    # We solve the system of two quadratics by eliminating the t^2 term.
-    # Eq 1: a1*t^2 + b1*t + c1 = 0
-    # Eq 2: a2*t^2 + b2*t + c2 = 0
-    # Multiply Eq 1 by a2 and Eq 2 by a1, then subtract:
-    # a2(b1*t + c1) - a1(b2*t + c2) = 0
-    # (a2*b1 - a1*b2) * t + (a2*c1 - a1*c2) = 0
-    # t = (a1*c2 - a2*c1) / (a2*b1 - a1*b2)
-    
-    num_expr = a1*c2 - a2*c1
-    den_expr = a2*b1 - a1*b2
-    
-    # In Symbolics, we can check if the denominator expression is structurally zero
-    if isequal(den_expr, 0)
-        # Fallback for degenerate cases where elimination fails (rare for general tensors)
-        println("  Denominator is zero. Falling back to direct quadratic formula for Eq 1...")
-        # a1*t^2 + b1*t + c1 = 0  => t = (-b1 + sqrt(b1^2 - 4*a1*c1)) / (2*a1)
-        t_formula = (-b1 + sqrt(b1^2 - 4*a1*c1)) / (2*a1)
-    else
-        t_formula = simplify(num_expr / den_expr)
+    sols = parse_solutions(filename)
+    if isempty(sols)
+        println("No solutions found in $filename to verify.")
+        return
     end
-    
-    println("  Formula Derived: t(λ) = $t_formula")
-
-    # 3. Verify against File
-    println("\nVerifying against $filename...")
-    file_sols = parse_solutions(filename)
     
     match_count = 0
-    total = length(file_sols)
+    total = length(sols)
+    tolerance = 1e-6 # Tolerance for residual
     
-    for (i, sol) in enumerate(file_sols)
+    for (i, sol) in enumerate(sols)
         λ_val = sol.λ
-        vec_file = sol.vec
+        vec_val = sol.vec
         
-        # Evaluate formula: t_eval = t_formula(λ_val)
-        # Substitute symbolic λ with complex value
-        t_sym_val = substitute(t_formula, Dict(λ => λ_val))
+        residual = compute_h_eigen_residual(tensor, vec_val, λ_val)
         
-        # Symbolics.value(t_sym_val) or just the result if it's already a number
-        # We use ComplexF64 construction
-        t_eval = ComplexF64(Symbolics.value(t_sym_val))
-        
-        # Theoretical Vector [1, t]
-        vec_theo = [1.0 + 0.0im, t_eval]
-        
-        # Check match
-        if is_parallel(vec_file, vec_theo)
+        status = residual < tolerance ? "PASS" : "FAIL"
+        if status == "PASS"
             match_count += 1
-            status = "MATCH"
-        else
-            # Special check for eigenvectors like [0, 1] which fail the t=x2/x1 model
-            if abs(vec_file[1]) < 1e-6 && abs(vec_file[2]) > 1e-6
-                status = "SKIP (Vertical Vector [0,1])"
-            else
-                status = "FAIL"
-            end
         end
         
-        println("  Sol $i: λ=$(round(λ_val, digits=4)) -> Status: $status")
-        if status == "FAIL"
-           println("     File: $(round.(vec_file, digits=4))")
-           println("     Theo: $(round.(vec_theo, digits=4))")
-        end
+        println("  Sol $i: λ=$(round(λ_val, digits=4))")
+        println("         x=$(round.(vec_val, digits=4))")
+        println("         Residual: $residual -> $status")
     end
     
-    println("  Summary: $match_count / $total solutions matched the derived formula.")
+    println("\n  Summary: $match_count / $total solutions satisfied the H-eigenpair equation (tol=$tolerance).")
 end
 
 function main()
     # Define Tensors
     tensor_A, tensor_B = get_example_tensors()
 
-    solve_and_verify(tensor_A, "Tensor A", "solutions_A.txt")
-    solve_and_verify(tensor_B, "Tensor B", "solutions_B.txt")
+    # The get_example_tensors might return different tensors based on version.
+    # We verify whatever is returned.
+    
+    # Check if solution files exist
+    if !isfile("solutions_A.txt") && !isfile("solutions_B.txt")
+        println("No solution files (solutions_A.txt, solutions_B.txt) found.")
+        println("Please run the 'Numerical Analysis' workflow first to generate solutions.")
+        return
+    end
+
+    if isfile("solutions_A.txt")
+        verify_solutions_generic(tensor_A, "Tensor A", "solutions_A.txt")
+    end
+    
+    if isfile("solutions_B.txt")
+        verify_solutions_generic(tensor_B, "Tensor B", "solutions_B.txt")
+    end
 end
 
-main()
-
-
-function main()
-    # Define Tensors
-    tensor_A, tensor_B = get_example_tensors()
-
-    solve_and_verify(tensor_A, "Tensor A", "solutions_A.txt")
-    solve_and_verify(tensor_B, "Tensor B", "solutions_B.txt")
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
 end
-
-main()
