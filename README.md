@@ -1,6 +1,6 @@
 # Tensor Kronecker Product H-Eigenvector Counterexamples
 
-Computational code for the paper **"Dominant H-Eigenvectors of Tensor Kronecker Products Do Not Decouple"**, currently in review at *Linear Algebra and its Applications*. [arXiv:2508.19902](https://arxiv.org/abs/2508.19902)
+Computational code for the paper **"Dominant H-Eigenvectors of Tensor Kronecker Products Do Not Decouple,"** currently in review at *Linear Algebra and its Applications*. [arXiv:2508.19902](https://arxiv.org/abs/2508.19902)
 
 ## Background:
 
