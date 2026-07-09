@@ -1,8 +1,8 @@
 # Tensor Kronecker Product H-Eigenvector Counterexamples
 
-Computational companion code for the paper **"Dominant H-Eigenvectors of Tensor Kronecker Products Do Not Decouple"** (Ayush Kulkarni, Prof. David Gleich — Purdue University), currently in review at *Linear Algebra and its Applications*. [arXiv:2508.19902](https://arxiv.org/abs/2508.19902)
+Computational code for the paper **"Dominant H-Eigenvectors of Tensor Kronecker Products Do Not Decouple"** (Ayush Kulkarni, Prof. David Gleich — Purdue University), currently in review at *Linear Algebra and its Applications*. [arXiv:2508.19902](https://arxiv.org/abs/2508.19902)
 
-## Background: what this project is actually about
+## Background:
 
 **Tensors** are the higher-dimensional generalization of matrices. A matrix is a 2D grid of numbers; an order-3 tensor is a 3D "cube" of numbers, order-4 is a 4D array, and so on.
 
@@ -19,7 +19,7 @@ where `A` is an order-`m` tensor. Unlike the matrix case, this is a *nonlinear* 
 
 **This paper's result: no, in general it does not.** It constructs explicit tensor pairs where the multiplicative property `|λ(B⊗A)| = |λ(A)|·|λ(B)|` fails, disproving a natural extension of the matrix case. This matters for anyone modeling systems as tensor products (e.g., multi-way data analysis, higher-order network models). You cannot assume the convenient "solve the small pieces, combine analytically" shortcut carries over from matrices to tensors.
 
-## Methodology: two independent verification pipelines
+## Methodology:
 
 To trust a candidate counterexample, every result is cross-checked by two independently implemented solvers:
 
@@ -66,7 +66,7 @@ julia --project=. main.jl                              # interactive menu
 
 The menu lets you: (1) run the check on the paper's known counterexample tensors, (2) run it on freshly generated random symmetric tensors, (3) run the analytical (exact) workflow, or (4) verify a specific solution analytically.
 
-## Performance analysis: how the benchmark numbers were calculated
+## Performance analysis:
 
 The pipeline's `kronecker_product` function currently builds the combined tensor by first creating two full-size temporary copies of the inputs (each one stretched out to match the final size), then multiplying those two copies together to get the answer. That works, but it means extra time and memory go into building copies that are thrown away immediately after.
 
@@ -82,7 +82,3 @@ Measured results (reproduce with `julia --project=. benchmarks/pipeline_benchmar
 | `generate_symmetric_tensor` | general combinatorics library | direct single pass | **83.9% faster** | **86.6% less** |
 
 These numbers describe a comparison used to measure the idea, not a change merged into the shipped pipeline — `common/tensor_utils.jl` itself is unchanged.
-
-### A note on counterexample-discovery metrics
-
-An earlier draft considered citing a count like "N counterexamples surfaced across M random trials." That framing was checked empirically and dropped: running `run_check_on_random_tensors` for 105 uniformly-random order-3, dimension-2 trials found **zero** violations of the decoupling property. The paper's actual counterexamples (see `get_example_tensors()` in `common/tensor_utils.jl`) are specific, hand-derived tensors, not something uniform random sampling turns up at any practical trial count — consistent with the paper itself being a targeted analytical construction backed by computational verification, rather than a brute-force search.
