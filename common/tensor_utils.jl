@@ -141,21 +141,21 @@ function get_example_tensors()
     
     # The false counterexample. (2.2)
     # Tensor A
-    tensor_A = reshape(cat(
-        [-0.5  0.6; 0.6  0.2],  # Block 1,1 (Top-Left)
-        [ 0.6  0.2; 0.2  0.1],  # Block 2,1 (Bottom-Left)
-        [ 0.6  0.2; 0.2  0.1],  # Block 1,2 (Top-Right)
-        [ 0.2  0.1; 0.1 -1.7],  # Block 2,2 (Bottom-Right)
-        dims=3
-    ), 2, 2, 2, 2)
-    # Tensor B
-    tensor_B = reshape(cat(
-        [-0.3  1.0; 1.0  0.1],  # Block 1,1 (Top-Left)
-        [ 1.0  0.1; 0.1 -1.0],  # Block 2,1 (Bottom-Left)
-        [ 1.0  0.1; 0.1 -1.0],  # Block 1,2 (Top-Right)
-        [ 0.1 -1.0; -1.0 -0.9], # Block 2,2 (Bottom-Right)
-        dims=3
-    ), 2, 2, 2, 2)
+    # tensor_A = reshape(cat(
+    #     [-0.5  0.6; 0.6  0.2],  # Block 1,1 (Top-Left)
+    #     [ 0.6  0.2; 0.2  0.1],  # Block 2,1 (Bottom-Left)
+    #     [ 0.6  0.2; 0.2  0.1],  # Block 1,2 (Top-Right)
+    #     [ 0.2  0.1; 0.1 -1.7],  # Block 2,2 (Bottom-Right)
+    #     dims=3
+    # ), 2, 2, 2, 2)
+    # # Tensor B
+    # tensor_B = reshape(cat(
+    #     [-0.3  1.0; 1.0  0.1],  # Block 1,1 (Top-Left)
+    #     [ 1.0  0.1; 0.1 -1.0],  # Block 2,1 (Bottom-Left)
+    #     [ 1.0  0.1; 0.1 -1.0],  # Block 1,2 (Top-Right)
+    #     [ 0.1 -1.0; -1.0 -0.9], # Block 2,2 (Bottom-Right)
+    #     dims=3
+    # ), 2, 2, 2, 2)
     
     
     
